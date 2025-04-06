@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Explorador de Cócteles 🍸</title>
+  <style>
+    /* Estilo general moderno y elegante */
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+    }
+    h1 {
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    .buscador {
+      background: rgba(255,255,255,0.9);
+      padding: 1rem 2rem;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      margin-bottom: 2rem;
+    }
+    .buscador input[type="text"] {
+      padding: 0.6rem;
+      font-size: 1rem;
+      width: 250px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-right: 0.5rem;
+    }
+    .buscador button {
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
+      border: none;
+      background-color: #3f8c71;
+      color: #fff;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .buscador button:hover {
+      background-color: #367a62;
+    }
+    .opciones {
+      margin-top: 0.5rem;
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
+    .resultados {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 2rem;
+      width: 100%;
+    }
+    .cocktail {
+      background: rgba(255,255,255,0.95);
+      border-radius: 10px;
+      padding: 1rem;
+      width: 300px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      opacity: 0;
+      transform: translateY(30px);
+      animation: aparecer 0.8s forwards;
+    }
+    .cocktail img {
+      width: 100%;
+      border-radius: 10px;
+      transition: transform 0.3s ease;
+    }
+    .cocktail img:hover {
+      transform: scale(1.05);
+    }
+    .cocktail h2 {
+      margin: 0.5rem 0;
+      color: #3f8c71;
+    }
+    .cocktail p {
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .ingredientes {
+      margin: 0.5rem 0;
+      font-weight: bold;
+    }
+    @keyframes aparecer {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    /* Animación extra para el hover de las tarjetas */
+    .cocktail:hover {
+      animation: glow 1s infinite alternate;
+    }
+    @keyframes glow {
+      from { box-shadow: 0 0 10px rgba(63,140,113,0.4); }
+      to { box-shadow: 0 0 20px rgba(63,140,113,0.8); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Explorador de Cócteles 🍹</h1>
+  <div class="buscador">
+    <input type="text" id="searchInput" placeholder="Introduce el nombre o ingrediente">
+    <button id="searchBtn">Buscar</button>
+    <div class="opciones">
+      <label><input type="radio" name="tipoBusqueda" value="nombre" checked> Por nombre</label>
+      <label><input type="radio" name="tipoBusqueda" value="ingrediente"> Por ingrediente</label>
+    </div>
+  </div>
+
+  <div id="resultados" class="resultados"></div>
+
+  <script>
+    /*
+      1) Diccionario de traducción para algunos ingredientes comunes.
+      2) Si el ingrediente no está en el diccionario, se intenta traducir dinámicamente usando
+         el endpoint no oficial de Google Translate.
+    */
+    const ingredientMap = {
+      "Vodka": "Vodka",
+      "Gin": "Ginebra",
+      "Tequila": "Tequila",
+      "Rum": "Ron",
+      "Triple sec": "Triple seco",
+      "Lime juice": "Jugo de lima",
+      "Lime Juice": "Jugo de lima",
+      "Lemon juice": "Jugo de limón",
+      "Lemon Juice": "Jugo de limón",
+      "Sugar": "Azúcar",
+      "Salt": "Sal",
+      "Mint": "Menta",
+      "Orange juice": "Jugo de naranja",
+      "Orange Juice": "Jugo de naranja",
+      "Cranberry juice": "Jugo de arándano",
+      "Cranberry Juice": "Jugo de arándano",
+      "Cola": "Cola",
+      "Bitters": "Amargos",
+      "Egg white": "Clara de huevo",
+      "Egg White": "Clara de huevo",
+      "Soda": "Soda"
+      // Puedes agregar más traducciones según lo necesites.
+    };
+
+    const searchBtn = document.getElementById('searchBtn');
+    const searchInput = document.getElementById('searchInput');
+    const resultadosDiv = document.getElementById('resultados');
+
+    // Función para traducir texto EN -> ES usando endpoint NO oficial de Google Translate
+    async function traducirTexto(texto) {
+      // Codificamos el texto para la URL
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=es&dt=t&q=${encodeURIComponent(texto)}`;
+      try {
+        const resp = await fetch(url);
+        const data = await resp.json();
+        /*
+          El formato devuelto por Google Translate suele ser un array anidado.
+          data[0] es un array de frases traducidas.
+          data[0][0][0] contiene la traducción final.
+        */
+        return data[0][0][0];
+      } catch (error) {
+        console.error('Error al traducir:', error);
+        // Si algo falla, devolvemos el texto original para no romper el flujo.
+        return texto;
+      }
+    }
+
+    searchBtn.addEventListener('click', () => {
+      const query = searchInput.value.trim();
+      const tipoBusqueda = document.querySelector('input[name="tipoBusqueda"]:checked').value;
+      
+      if(query === '') {
+        alert('Por favor, ingresa un criterio de búsqueda.');
+        return;
+      }
+      
+      resultadosDiv.innerHTML = ''; // Limpia resultados previos
+      
+      if(tipoBusqueda === 'nombre') {
+        buscarPorNombre(query);
+      } else {
+        buscarPorIngrediente(query);
+      }
+    });
+
+    function buscarPorNombre(nombre) {
+      fetch(`https://www.thecocktaildb.com/api/json/v1/1/search.php?s=${encodeURIComponent(nombre)}`)
+      .then(response => response.json())
+      .then(data => {
+        if(data.drinks) {
+          data.drinks.forEach(drink => renderizarCocktail(drink));
+        } else {
+          resultadosDiv.innerHTML = '<p style="color:#fff;">No se encontraron cócteles.</p>';
+        }
+      })
+      .catch(error => console.error('Error:', error));
+    }
+
+    function buscarPorIngrediente(ingrediente) {
+      fetch(`https://www.thecocktaildb.com/api/json/v1/1/filter.php?i=${encodeURIComponent(ingrediente)}`)
+      .then(response => response.json())
+      .then(data => {
+        if(data.drinks) {
+          data.drinks.forEach(drink => {
+            fetch(`https://www.thecocktaildb.com/api/json/v1/1/lookup.php?i=${drink.idDrink}`)
+            .then(response => response.json())
+            .then(detalle => {
+              if(detalle.drinks) {
+                renderizarCocktail(detalle.drinks[0]);
+              }
+            })
+            .catch(error => console.error('Error lookup:', error));
+          });
+        } else {
+          resultadosDiv.innerHTML = '<p style="color:#fff;">No se encontraron cócteles con ese ingrediente.</p>';
+        }
+      })
+      .catch(error => console.error('Error:', error));
+    }
+
+    // Hacemos la función async para poder traducir antes de renderizar
+    async function renderizarCocktail(drink) {
+      const cocktailDiv = document.createElement('div');
+      cocktailDiv.className = 'cocktail';
+
+      // 1) Instrucciones: usar la versión en español si existe, sino traducir al vuelo.
+      let instrucciones = '';
+      if (drink.strInstructionsES) {
+        instrucciones = drink.strInstructionsES;
+      } else if (drink.strInstructions) {
+        // Traducir las instrucciones en inglés al español
+        instrucciones = await traducirTexto(drink.strInstructions);
+      } else {
+        instrucciones = 'No hay instrucciones disponibles.';
+      }
+
+      // 2) Ingredientes y medidas: primero revisamos el diccionario; si no existe, traducimos.
+      let ingredientesHTML = '<ul>';
+      for(let i = 1; i <= 15; i++){
+        const ingredienteOriginal = drink[`strIngredient${i}`];
+        const medida = drink[`strMeasure${i}`] || '';
+        if(ingredienteOriginal){
+          // Verificamos si tenemos traducción directa en el diccionario
+          let ingredienteTraducido = ingredientMap[ingredienteOriginal.trim()];
+          if(!ingredienteTraducido) {
+            // Si no está en el diccionario, lo traducimos
+            ingredienteTraducido = await traducirTexto(ingredienteOriginal);
+          }
+          ingredientesHTML += `<li>${medida.trim()} ${ingredienteTraducido}</li>`;
+        }
+      }
+      ingredientesHTML += '</ul>';
+
+      // 3) Renderizamos la tarjeta
+      cocktailDiv.innerHTML = `
+        ${drink.strDrinkThumb ? `<img src="${drink.strDrinkThumb}" alt="${drink.strDrink}">` : ''}
+        <h2>${drink.strDrink}</h2>
+        <div class="ingredientes">Ingredientes:</div>
+        ${ingredientesHTML}
+        <p><strong>Instrucciones:</strong> ${instrucciones}</p>
+      `;
+
+      resultadosDiv.appendChild(cocktailDiv);
+    }
+  </script>
+
+</body>
+</html>
